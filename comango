@@ -1,8 +1,7 @@
 #!/bin/bash
 
 if [ $(whoami) == "root" ]; then
-  echo "Comango should not be run as root. Proceed? (y/n)"
-  read yn
+  read -p "Comango should not be run as root. Proceed? (y/n) " yn
   if [ ! "$yn" == "y" ]; then
     exit 0
   fi
@@ -70,12 +69,43 @@ function _setup_repo() {
 
 }
 
+# checks remote for updates
+function sync() {
+  echo "${blue}fetching remote...${reset}"
+  for repo_dir in $REPOS_DIR/*; do
+    _sync_repo $repo_dir
+  done
+}
+
+function _sync_repo() {
+  local local_name=$(basename -a $1)
+
+  cd $1
+
+  # check if remote has changes
+  git fetch -q origin
+  changes=$(git log HEAD..origin/main --oneline | cat)
+  if [ -n "$changes" ]; then
+    printf "%-30s %s\n" "${yellow}$local_name:" "pulling...${reset}"
+    git pull -q
+  else 
+    printf "%-30s %s\n" "${cyan}$local_name:"   "up to date${reset}" 
+  fi
+
+}
+
 # upgrade remote if local changes have been made
 function upgrade() {
   echo "${blue}updating remote...${reset}"
   for repo_dir in $REPOS_DIR/*; do
     _update_repo $repo_dir
   done
+
+  echo ""
+  _build
+  _delete_removed_files
+  echo ""
+  _propagate
 }
 
 function _update_repo() {
@@ -93,10 +123,6 @@ function _update_repo() {
     printf "%-30s %s\n" "${cyan}$local_name:"   "up to date${reset}" 
   fi
 }
-
-# function sync() {
-
-# }
 
 # create repository
 function create() {
@@ -117,6 +143,8 @@ function create() {
 function _build() {
   rm -rf $BUILD_DIR
 
+  echo "${green}building...${reset}"
+
   mkdir -p $BUILD_DIR/home
   mkdir -p $BUILD_DIR/root
 
@@ -126,28 +154,61 @@ function _build() {
     test -d $repo_dir/root && cp -r $repo_dir/root $BUILD_DIR/
   done
 
+  _replace_templates
+
+  # chown root files to root
+  # test -d $BUILD_DIR/root && sudo chown -R root:root $BUILD_DIR/root
+
   (cd $BUILD_DIR && 
    find * -type "f,s" > $CURRENT_BUILD)
 }
 
 function _replace_templates() {
-  echo "nothing to see here"
+  echo "${green}replacing templates...${reset}"
 }
 
 # deletes files that where propagated previously but are missing in current build
 function _delete_removed_files() {
-  #TODO: accumulate to delete batch and ask confirmation only once
+  test -f $PREVIOUS_PROPAGATION || return 0
+
+  removed=()  
+
   while read -u 10 file; do
     # check if file exists in current build
     if ! grep -q "$file" "$CURRENT_BUILD"; then
-      read -p "${red}$file was removed. delete from system? (y/n)${reset}"
-      if [ ! "$yn" == "y" ]; then
-        #TODO: not only use home
-        full_path=$(echo "$file" | sed -e "s:home:$HOME:")
-        test -f $full_path && rm $full_path
-      fi
+      removed+=("$file")
     fi
   done 10< $PREVIOUS_PROPAGATION
+
+  #check if anything to delete
+  if [ -n "$removed" ]; then
+    echo "${red}following files will be removed from the system${reset}"
+    echo ""
+    echo "${removed[@]}" | sed "s: :\n:g" | sed -E "s:(.*):${red}\1${reset}:"
+    echo ""
+
+    read -p "continue? (${red}y${reset}/${green}n${reset}) " yn
+    if [ "$yn" == "y" ]; then
+      home_files=$(echo "${removed[@]}" | sed "s: :\n:g" | grep "home")
+      root_files=$(echo "${removed[@]}" | sed "s: :\n:g" | grep "root")
+
+      #TODO: also remove empty directories
+      for file in $home_files; do
+        local full_path=$(echo "$file" | sed -e "s:home:$HOME:")
+        echo "removing $full_path"
+        test -f $full_path &&
+        rm $full_path
+      done
+      
+      for file in $root_files; do
+        local full_path=$(echo "$file" | sed -e "s:root::")
+        echo "removing $full_path"
+        test -f $full_path && 
+          sudo rm $full_path
+      done
+
+    fi
+  fi
 }
 
 
@@ -156,21 +217,73 @@ function _propagate() {
   # clean old propagation file
   rm -f $PREVIOUS_PROPAGATION
 
+  echo "${green}distributing files...${reset}"
 
+  _home_propagate
+  _root_propagate
+}
 
+function _home_propagate() {
+  test -d $BUILD_DIR/home || return 0
+
+  echo "${cyan}propagating home${reset}"
   cd $BUILD_DIR/home
   # find all files in build dir
   files=$(find * -type "f,s")
 
   # for each file distribute
   for file in $files; do
-    echo "propagating $file"
-    # TODO: more complex logic that checks for merge conflicts
-    cp --parents $file $HOME
+    if [ -n "$(diff -qN $file $HOME/$file)" ]; then
+      echo "propagating $file"
+      # TODO: more complex logic that checks for merge conflicts
+      cp --parents $file $HOME
+    fi
+
     # save to propagation file
     echo home/$file >> $PREVIOUS_PROPAGATION
   
   done
+  echo ""
+}
+
+function _root_propagate() {
+  test -d $BUILD_DIR/root || return 0
+
+  echo "${yellow}propagating root${reset}"
+  cd $BUILD_DIR/root
+  # find all files in build dir
+  files=$(find * -type "f,s")
+
+  # for each file distribute
+  for file in $files; do
+    if [ -n "$(diff -qN $file /$file)" ]; then
+      echo "propagating $file"
+      # TODO: more complex logic that checks for merge conflicts 
+      sudo cp --parents $file /
+      sudo chown root:root /$file
+    fi
+
+    # save to propagation file
+    echo root/$file >> $PREVIOUS_PROPAGATION
+  
+  done
+  echo ""
+}
+
+# removes all files from the system that are contained in the current build.
+# DO NOT USE THIS UNLESS SURE NOTHING IMPORTANT FOR THE SYSTEM IS TRACKED
+function wipe() {
+
+  read -p "${red}CAREFUL. THIS WILL WIPE ALL FILES TRACKED IN THE CURRENT BUILD. CONTINUE? (y/n)${reset} " yn
+
+  if [ "$yn" == "y" ]; then
+    rm -f $CURRENT_BUILD
+    touch $CURRENT_BUILD
+    _delete_removed_files
+
+    
+    rm -rf $BUILD_DIR $REPOS_DIR $PREVIOUS_PROPAGATION $CURRENT_BUILD 
+  fi
 }
 
 function help() {
