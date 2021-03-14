@@ -130,6 +130,10 @@ function _build() {
    find * -type "f,s" > $CURRENT_BUILD)
 }
 
+function _replace_templates() {
+  echo "nothing to see here"
+}
+
 # deletes files that where propagated previously but are missing in current build
 function _delete_removed_files() {
   #TODO: accumulate to delete batch and ask confirmation only once
@@ -161,7 +165,7 @@ function _propagate() {
   # for each file distribute
   for file in $files; do
     echo "propagating $file"
-    # TODO: more complexe logic that checks for merge conflictsge
+    # TODO: more complex logic that checks for merge conflicts
     cp --parents $file $HOME
     # save to propagation file
     echo home/$file >> $PREVIOUS_PROPAGATION
