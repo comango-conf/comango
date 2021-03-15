@@ -295,6 +295,16 @@ function _generate_portage_set() {
 
   # filter duplicate entries and append do comango set
   echo $packages | sed "s: :\n:g" | sort -u >> $sets_dir/comango
+
+  # check if set has changes and abort if the user has to emerge these changes
+  if [ -n "$(diff -qN $sets_dir/comango /etc/portage/sets/comango)" ]; then
+    (cd $BUILD_DIR/root &&
+     sudo cp --parents etc/portage/sets/comango /)
+
+    echo "the comango set has package changes. please emerge before restarting upgrade"
+    echo "emerge -avnuU @comango"
+    exit 0
+  fi  
 }
 
 # removes all files from the system that are contained in the current build.
