@@ -195,14 +195,14 @@ function _delete_removed_files() {
 
       #TODO: also remove empty directories
       for file in $home_files; do
-        local full_path=$(echo "$file" | sed -e "s:home:$HOME:")
+        local full_path=$(echo "$file" | sed -e "s:home/:$HOME/:")
         echo "removing $full_path"
         test -f $full_path &&
         rm $full_path
       done
       
       for file in $root_files; do
-        local full_path=$(echo "$file" | sed -e "s:root::")
+        local full_path=$(echo "$file" | sed -e "s:root/:/:")
         echo "removing $full_path"
         test -f $full_path && 
           sudo rm $full_path
