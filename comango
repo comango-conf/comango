@@ -185,27 +185,27 @@ function _delete_removed_files() {
   if [ -n "$removed" ]; then
     echo "${red}following files will be removed from the system${reset}"
     echo ""
-    echo "${removed[@]}" | sed "s: :\n:g" | sed -E "s:(.*):${red}\1${reset}:"
+    printf '%s\n' "${removed[@]}" | sed -E "s:(.*):${red}\1${reset}:"
     echo ""
 
     read -p "continue? (${red}y${reset}/${green}n${reset}) " yn
     if [ "$yn" == "y" ]; then
-      home_files=$(echo "${removed[@]}" | sed "s: :\n:g" | grep "home")
-      root_files=$(echo "${removed[@]}" | sed "s: :\n:g" | grep "root")
+      readarray -t home_files <<<"$(printf '%s\n' "${removed[@]}" | grep "home/")"
+      readarray -t root_files <<<"$(printf '%s\n' "${removed[@]}" | grep "root/")"
 
       #TODO: also remove empty directories
-      for file in $home_files; do
-        local full_path=$(echo "$file" | sed -e "s:home/:$HOME/:")
+      for file in "${home_files[@]}"; do
+        local full_path=$(echo "$file" | sed "s:home/:$HOME/:")
         echo "removing $full_path"
-        test -f $full_path &&
-        rm $full_path
+        test -f "$full_path" &&
+          rm "$full_path"
       done
       
-      for file in $root_files; do
-        local full_path=$(echo "$file" | sed -e "s:root/:/:")
+      for file in "${root_files[@]}"; do
+        local full_path=$(echo "$file" | sed "s:root/:/:")
         echo "removing $full_path"
-        test -f $full_path && 
-          sudo rm $full_path
+        test -f "$full_path" && 
+          sudo rm "$full_path"
       done
 
     fi
@@ -231,20 +231,21 @@ function _home_propagate() {
   echo "${cyan}propagating home${reset}"
   cd $BUILD_DIR
   # find all files in build dir
-  files=$(find home -type "f,s" | sed "s:home/::g")
+  local files
+  mapfile -t files <<<"$(find home -type "f,s" | sed "s:home/::g")" 
 
   cd home
 
   # for each file distribute
-  for file in $files; do
-    if [ -n "$(diff -qN $file $HOME/$file)" ]; then
+  for file in "${files[@]}"; do
+    if [ -n "$(diff -qN "$file" "$HOME/$file")" ]; then
       echo "propagating $file"
       # TODO: more complex logic that checks for merge conflicts
-      cp --parents $file $HOME
+      cp --parents "$file" $HOME
     fi
 
     # save to propagation file
-    echo home/$file >> $PREVIOUS_PROPAGATION
+    echo "home/$file" >> $PREVIOUS_PROPAGATION
   
   done
   echo ""
@@ -257,21 +258,22 @@ function _root_propagate() {
   echo "${yellow}propagating root${reset}"
   cd $BUILD_DIR
   # find all files in build dir
-  files=$(find root -type "f,s" | sed "s:root/::g")
+  local files
+  mapfile -t files <<<"$(find root -type "f,s" | sed "s:root/::g")"
 
   cd root
 
   # for each file distribute
-  for file in $files; do
-    if [ -n "$(diff -qN $file /$file)" ]; then
+  for file in "${files[@]}"; do
+    if [ -n "$(diff -qN "$file" "/$file")" ]; then
       echo "propagating $file"
       # TODO: more complex logic that checks for merge conflicts 
-      sudo cp --parents $file /
-      sudo chown root:root /$file
+      sudo cp --parents "$file" /
+      sudo chown root:root "/$file"
     fi
 
     # save to propagation file
-    echo root/$file >> $PREVIOUS_PROPAGATION
+    echo "root/$file" >> $PREVIOUS_PROPAGATION
   
   done
   echo ""
@@ -293,7 +295,7 @@ function _generate_portage_set() {
     fi
   done
 
-  # filter duplicate entries and append do comango set
+  # filter duplicate entries and append to comango set
   echo $packages | sed "s: :\n:g" | sort -u >> $sets_dir/comango
 
   # check if set has changes and abort if the user has to emerge these changes
