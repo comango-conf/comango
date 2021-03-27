@@ -96,10 +96,29 @@ function _sync_repo() {
 
 # upgrade remote if local changes have been made
 function upgrade() {
-  echo "${blue}updating remote...${reset}"
-  for repo_dir in $REPOS_DIR/*; do
-    _update_repo $repo_dir
+
+  # parse args
+  while [[ $# -gt 0 ]] 
+  do
+    key="$1"
+    case $key in 
+      -l|--local)
+      LOCAL=YES
+      shift
+      ;;
+      *)
+        echo "Unknown argument $key"
+        exit 1
+    esac
   done
+
+  # update remote unless local is set
+  if [ -z $LOCAL ]; then
+    echo "${blue}updating remote...${reset}"
+    for repo_dir in $REPOS_DIR/*; do
+      _update_repo $repo_dir
+    done
+  fi
 
   echo ""
   _build
@@ -327,7 +346,7 @@ function wipe() {
 
 function help() {
   echo "
-   usage: comango <setup|update|sync|create>"
+   usage: comango <setup|upgrade|sync|create>"
 }
 
 function config() {
