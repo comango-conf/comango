@@ -185,6 +185,45 @@ function _build() {
 
 function _replace_templates() {
   echo "${green}replacing templates...${reset}"
+
+
+  # collect env variables in correct order
+  _collect_env $base_repo
+
+  echo $PRIMARY
+
+
+  local files
+  mapfile -t files <<<"$(find $BUILD_DIR -type "f,s")" 
+
+  for file in "${files[@]}"; do
+    sed -E "s:<%\{(.*)\}%>:\1:"
+  done 
+}
+
+# sources all env files and scripts in env.d
+function _collect_env() {
+
+  local repo_dir=$REPOS_DIR/$1
+
+  # source basic env variables
+  if [ -f $repo_dir/.conf/env ]; then
+    source $repo_dir/.conf/env
+  fi
+
+  # source env.d scripts
+  if [ -d $repo_dir/.conf/env.d ]; then
+    for script in $repo_dir/.conf/env.d/*; do
+      source $script
+    done
+  fi
+
+  # call next dependency in tree
+  if [ -f $repo_dir/.conf/requires ]; then
+    while read p; do
+      _collect_env $p 
+    done < $repo_dir/.conf/requires
+  fi
 }
 
 # deletes files that where propagated previously but are missing in current build
