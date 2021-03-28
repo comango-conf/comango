@@ -17,6 +17,7 @@ export BUILD_DIR="$COMANGO_DIR/build"
 export CONFIG_FILE="$COMANGO_DIR/comango.conf"
 export PREVIOUS_PROPAGATION="$COMANGO_DIR/previous_propagation"
 export CURRENT_BUILD="$COMANGO_DIR/current_build"
+export SED_FILE="$COMANGO_DIR/sed"
 
 
 export red="`tput setaf 1`"
@@ -184,25 +185,49 @@ function _build() {
 }
 
 function _replace_templates() {
-  echo "${green}replacing templates...${reset}"
-
-
+  echo "${green}collecting env variables...${reset}"
   # collect env variables in correct order
   _collect_env $base_repo
-
-  echo $PRIMARY
 
 
   local files
   mapfile -t files <<<"$(find $BUILD_DIR -type "f,s")" 
 
+  # collect all env variables that are used somewhere
+  local variables=""
   for file in "${files[@]}"; do
-    sed -E "s:<%\{(.*)\}%>:\1:"
+    variables+=$(cat "$file" | find-tokens -p "<#{" -P "}#>")
+    variables+=" "
   done 
+
+  mapfile -t variables <<<"$(echo $variables | sed "s: :\n:g"| sort -u)"
+
+  test -f $SED_FILE && rm $SED_FILE
+
+  # check if all required env variables are satisfied
+  for v in "${variables[@]}"; do
+    if [ -z "${!v}" ]; then
+      echo "${red}env variable $v is not set${reset}"
+      exit 1
+    fi
+    printf "%-20s %s\n" $v ${!v} 
+    echo "s:<#{${v}}#>:${!v}:g" >> $SED_FILE
+
+  done
+
+
+  echo ""
+  echo "${green}replacing templates...${reset}"
+  echo ""
+  # actually replace files
+  for file in "${files[@]}"; do
+    sed -i -f $SED_FILE "$file"
+  done
 }
 
 # sources all env files and scripts in env.d
 function _collect_env() {
+
 
   local repo_dir=$REPOS_DIR/$1
 
@@ -229,6 +254,8 @@ function _collect_env() {
 # deletes files that where propagated previously but are missing in current build
 function _delete_removed_files() {
   test -f $PREVIOUS_PROPAGATION || return 0
+
+  echo "${yellow}checking for removed files...${reset}"
 
   removed=()  
 
