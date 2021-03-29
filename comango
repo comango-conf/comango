@@ -14,6 +14,7 @@ export COMANGO_DIR="$HOME/.comango"
 export REPOS_DIR="$COMANGO_DIR/repos"
 export BUILD_DIR="$COMANGO_DIR/build"
 
+export ENV_FILE="$HOME/.comangoenv"
 export CONFIG_FILE="$COMANGO_DIR/comango.conf"
 export PREVIOUS_PROPAGATION="$COMANGO_DIR/previous_propagation"
 export CURRENT_BUILD="$COMANGO_DIR/current_build"
@@ -187,6 +188,8 @@ function _build() {
 function _replace_templates() {
   echo "${green}collecting env variables...${reset}"
   # collect env variables in correct order
+  test -f $ENV_FILE && source $ENV_FILE
+
   _collect_env $base_repo
 
 
