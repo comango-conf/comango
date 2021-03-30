@@ -38,12 +38,6 @@ test -z $git_url     && echo "git_url not set"     && exit 1
 test -z $base_repo   && echo "base_repo not set"   && exit 1
 test -z $repo_prefix && echo "repo_prefix not set" && exit 1
 
-# check if find-tokens is in path
-which find-tokens &> /dev/null
-if [ "$?" == 1 ]; then
-  echo "${red}find-tokens dependency is missing${reset}"
-  exit 1
-fi
 
 mkdir -p $REPOS_DIR $BUILD_DIR
 
@@ -58,11 +52,11 @@ function _setup_repo() {
   local local_name=$(echo $1 | sed -e "s/^[$repo_prefix]*//")
   local repo_dir=$REPOS_DIR/$local_name
   local indent="${2:-0}"
-  
+
   # clone repo
   if [ -d $repo_dir ]; then
     printf "%*s%s\n" $indent '' "${yellow}$local_name${reset}"
-  else 
+  else
     printf "%*s%s\n" $indent '' "${cyan}cloning $local_name...${reset}"
     git clone -q "$git_url/${1}.git" $repo_dir 1> /dev/null
   fi
@@ -96,8 +90,8 @@ function _sync_repo() {
   if [ -n "$changes" ]; then
     printf "%-30s %s\n" "${yellow}$local_name:" "pulling...${reset}"
     git pull -q
-  else 
-    printf "%-30s %s\n" "${cyan}$local_name:"   "up to date${reset}" 
+  else
+    printf "%-30s %s\n" "${cyan}$local_name:"   "up to date${reset}"
   fi
 
 }
@@ -106,10 +100,9 @@ function _sync_repo() {
 function upgrade() {
 
   # parse args
-  while [[ $# -gt 0 ]] 
-  do
+  while [[ $# -gt 0 ]]; do
     key="$1"
-    case $key in 
+    case $key in
       -l|--local)
       LOCAL=YES
       shift
@@ -147,7 +140,7 @@ function _update_repo() {
     git commit -qm "auto update"
     git push -q
   else
-    printf "%-30s %s\n" "${cyan}$local_name:"   "up to date${reset}" 
+    printf "%-30s %s\n" "${cyan}$local_name:"   "up to date${reset}"
   fi
 }
 
@@ -157,7 +150,7 @@ function create() {
   git init $1
   cd $1
   gh repo create "$repo_prefix$1" --confirm --public
-  git checkout -b main 
+  git checkout -b main
   touch .gitignore
   mkdir .conf
   touch .conf/requires
@@ -177,7 +170,7 @@ function _build() {
 
   for repo_dir in $REPOS_DIR/*; do
     # copy files if repo has dir
-    test -d $repo_dir/home && cp -r $repo_dir/home $BUILD_DIR/ 
+    test -d $repo_dir/home && cp -r $repo_dir/home $BUILD_DIR/
     test -d $repo_dir/root && cp -r $repo_dir/root $BUILD_DIR/
   done
 
@@ -187,7 +180,7 @@ function _build() {
   # chown root files to root
   # test -d $BUILD_DIR/root && sudo chown -R root:root $BUILD_DIR/root
 
-  (cd $BUILD_DIR && 
+  (cd $BUILD_DIR &&
    find * -type "f,s" > $CURRENT_BUILD)
 }
 
@@ -200,14 +193,14 @@ function _replace_templates() {
 
 
   local files
-  mapfile -t files <<<"$(find $BUILD_DIR -type "f,s")" 
+  mapfile -t files <<<"$(find $BUILD_DIR -type "f,s")"
 
   # collect all env variables that are used somewhere
   local variables=""
   for file in "${files[@]}"; do
-    variables+=$(cat "$file" | find-tokens -p "<#{" -P "}#>")
+    variables+=$(cat "$file" | grep '<#{[^}]*}#>' -o | sed 's:<#{\([^}]*\)}#>:\1:g')
     variables+=" "
-  done 
+  done
 
   mapfile -t variables <<<"$(echo $variables | sed "s: :\n:g"| sort -u)"
 
@@ -219,7 +212,7 @@ function _replace_templates() {
       echo "${red}env variable $v is not set${reset}"
       exit 1
     fi
-    printf "%-20s %s\n" $v ${!v} 
+    printf "%-20s %s\n" $v ${!v}
     echo "s:<#{${v}}#>:${!v}:g" >> $SED_FILE
 
   done
@@ -255,7 +248,7 @@ function _collect_env() {
   # call next dependency in tree
   if [ -f $repo_dir/.conf/requires ]; then
     while read p; do
-      _collect_env $p 
+      _collect_env $p
     done < $repo_dir/.conf/requires
   fi
 }
@@ -266,7 +259,7 @@ function _delete_removed_files() {
 
   echo "${yellow}checking for removed files...${reset}"
 
-  removed=()  
+  removed=()
 
   while read -u 10 file; do
     # check if file exists in current build
@@ -294,11 +287,11 @@ function _delete_removed_files() {
         test -f "$full_path" &&
           rm "$full_path"
       done
-      
+
       for file in "${root_files[@]}"; do
         local full_path=$(echo "$file" | sed "s:root/:/:")
         echo "removing $full_path"
-        test -f "$full_path" && 
+        test -f "$full_path" &&
           sudo rm "$full_path"
       done
 
@@ -326,7 +319,7 @@ function _home_propagate() {
   cd $BUILD_DIR
   # find all files in build dir
   local files
-  mapfile -t files <<<"$(find home -type "f,s" | sed "s:home/::g")" 
+  mapfile -t files <<<"$(find home -type "f,s" | sed "s:home/::g")"
 
   cd home
 
@@ -340,7 +333,7 @@ function _home_propagate() {
 
     # save to propagation file
     echo "home/$file" >> $PREVIOUS_PROPAGATION
-  
+
   done
   echo ""
 }
@@ -361,14 +354,14 @@ function _root_propagate() {
   for file in "${files[@]}"; do
     if [ -n "$(diff -qN "$file" "/$file")" ]; then
       echo "propagating $file"
-      # TODO: more complex logic that checks for merge conflicts 
+      # TODO: more complex logic that checks for merge conflicts
       sudo cp --parents "$file" /
       sudo chown root:root "/$file"
     fi
 
     # save to propagation file
     echo "root/$file" >> $PREVIOUS_PROPAGATION
-  
+
   done
   echo ""
 }
@@ -384,7 +377,7 @@ function _generate_portage_set() {
   # collect all packages
   packages=""
   for repo_dir in $REPOS_DIR/*; do
-    if [ -f $repo_dir/.conf/packages ]; then 
+    if [ -f $repo_dir/.conf/packages ]; then
       packages+=" $(cat $repo_dir/.conf/packages)"
     fi
   done
@@ -400,7 +393,7 @@ function _generate_portage_set() {
     echo "the comango set has package changes. please emerge before restarting upgrade"
     echo "emerge -avnuU @comango"
     exit 0
-  fi  
+  fi
 }
 
 # removes all files from the system that are contained in the current build.
@@ -414,8 +407,8 @@ function wipe() {
     touch $CURRENT_BUILD
     _delete_removed_files
 
-    
-    rm -rf $BUILD_DIR $REPOS_DIR $PREVIOUS_PROPAGATION $CURRENT_BUILD 
+
+    rm -rf $BUILD_DIR $REPOS_DIR $PREVIOUS_PROPAGATION $CURRENT_BUILD
   fi
 }
 
@@ -430,4 +423,4 @@ function config() {
 }
 
 
-$@
+"$@"
