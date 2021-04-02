@@ -152,8 +152,10 @@ function create() {
   gh repo create "$repo_prefix$1" --confirm --public
   git checkout -b main
   touch .gitignore
+  echo "This repository is managed by comango." > README.md
   mkdir .conf
   touch .conf/requires
+  touch .conf/packages
   git add .
   git commit -qm "init"
   git push -qu origin main
