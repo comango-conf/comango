@@ -425,4 +425,30 @@ function config() {
 }
 
 
-"$@"
+# helper function for exec script to change variables in the comango env file
+function set_env_var() {
+    key=$1
+    value=$2
+
+    test -f $ENV_FILE || touch $ENV_FILE
+
+    if [ -n "$(sed "s:#.*::" $ENV_FILE | grep $key)" ]; then
+        sed -i -E "s:$key=.*:$key=\"$value\":" $ENV_FILE
+    else
+        echo "$key=\"$value\"" >> $ENV_FILE
+    fi
+}
+export -f set_env_var
+
+
+if [ -n "$1" ] && [ -d "$REPOS_DIR/$1" ]; then
+    if [ -e "$REPOS_DIR/$1/.conf/exec" ]; then
+         exec="$REPOS_DIR/$1/.conf/exec"
+         shift
+        sh $exec "$@"
+    else
+        echo "$1 does not have an exec script"
+    fi
+else
+    "$@"
+fi
