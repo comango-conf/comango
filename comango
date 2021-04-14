@@ -43,7 +43,18 @@ mkdir -p $REPOS_DIR $BUILD_DIR
 
 #------FUNCTIONS-------#
 
+# checks if the system has an internet connection and exists if not
+function _check_internet() {
+  wget -q --spider http://google.com
+
+  if [ "$?" != "0" ]; then
+    echo "${red}no internet connection${reset}"
+    exit 1
+  fi
+}
+
 function setup() {
+  _check_internet
   _setup_repo $base_repo
 }
 
@@ -73,6 +84,8 @@ function _setup_repo() {
 
 # checks remote for updates
 function sync() {
+  _check_internet
+
   echo "${blue}fetching remote...${reset}"
   for repo_dir in $REPOS_DIR/*; do
     _sync_repo $repo_dir
@@ -115,6 +128,7 @@ function upgrade() {
 
   # update remote unless local is set
   if [ -z $LOCAL ]; then
+    _check_internet
     echo "${blue}updating remote...${reset}"
     for repo_dir in $REPOS_DIR/*; do
       _update_repo $repo_dir
