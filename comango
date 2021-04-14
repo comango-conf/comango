@@ -21,12 +21,12 @@ export CURRENT_BUILD="$COMANGO_DIR/current_build"
 export SED_FILE="$COMANGO_DIR/sed"
 
 
-export red="`tput setaf 1`"
-export green="`tput setaf 2`"
-export yellow="`tput setaf 3`"
-export blue="`tput setaf 4`"
-export cyan="`tput setaf 6`"
-export reset="`tput sgr0`"
+export red="$(tput setaf 1)"
+export green="$(tput setaf 2)"
+export yellow="$(tput setaf 3)"
+export blue="$(tput setaf 4)"
+export cyan="$(tput setaf 6)"
+export reset="$(tput sgr0)"
 
 
 # echo "${cyan}COMANGO${reset}"
