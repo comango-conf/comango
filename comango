@@ -13,6 +13,7 @@ fi
 export COMANGO_DIR="$HOME/.comango"
 export REPOS_DIR="$COMANGO_DIR/repos"
 export BUILD_DIR="$COMANGO_DIR/build"
+export LOG_DIR="$COMANGO_DIR/log"
 
 export ENV_FILE="$HOME/.comangoenv"
 export CONFIG_FILE="$COMANGO_DIR/comango.conf"
@@ -20,14 +21,14 @@ export PREVIOUS_PROPAGATION="$COMANGO_DIR/previous_propagation"
 export CURRENT_BUILD="$COMANGO_DIR/current_build"
 export SED_FILE="$COMANGO_DIR/sed"
 
-
-export red="$(tput setaf 1)"
-export green="$(tput setaf 2)"
-export yellow="$(tput setaf 3)"
-export blue="$(tput setaf 4)"
-export cyan="$(tput setaf 6)"
-export reset="$(tput sgr0)"
-
+if [ $TERM ]; then
+    export red="$(tput setaf 1)"
+    export green="$(tput setaf 2)"
+    export yellow="$(tput setaf 3)"
+    export blue="$(tput setaf 4)"
+    export cyan="$(tput setaf 6)"
+    export reset="$(tput sgr0)"
+fi
 
 # echo "${cyan}COMANGO${reset}"
 
@@ -410,6 +411,37 @@ function _generate_portage_set() {
     echo "emerge -avnuU @comango"
     exit 0
   fi
+}
+
+function hook() {
+  hook=$1
+
+  if [ -z $hook ]; then
+    echo "${red}no hook type provided${reset}"
+    exit 1;
+  fi
+
+  echo "Running ${hook} hook"
+
+  files=$REPOS_DIR/*/.conf/hooks/*
+
+  mkdir -p $LOG_DIR
+  for script in $files; do
+    hook_def=$(grep "#HOOKS INTO" $script)
+
+    if [ -z "$hook_def" ]; then
+      echo "${red}script ${script} missing #HOOKS INTO${reset}"
+      exit 1;
+    fi
+
+    name=$(basename -s .sh $script)
+    
+    if [ -n "$(echo "$hook_def" | grep "$hook")" ]; then
+      echo "${blue}running${reset} $script"
+      $script &> "${LOG_DIR}/${name}.log"
+    fi
+
+  done
 }
 
 # removes all files from the system that are contained in the current build.
