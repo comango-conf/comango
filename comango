@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 if [ $(whoami) == "root" ]; then
   read -p "Comango should not be run as root. Proceed? (y/n) " yn
@@ -435,7 +435,7 @@ function hook() {
     fi
 
     name=$(basename -s .sh $script)
-    
+
     if [ -n "$(echo "$hook_def" | grep "$hook")" ]; then
       echo "${blue}running${reset} $script"
       $script &> "${LOG_DIR}/${name}.log"
