@@ -16,7 +16,7 @@ stdenv.mkDerivation {
   installPhase = ''
     mkdir $out
     mkdir $out/bin
-    mkdir -p $out/share/bash-completions
+    mkdir -p $out/share/bash-completions/completions
 
 
     cp comango $out/bin
