@@ -477,7 +477,7 @@ function wipe() {
 
 function help() {
   echo "
-   usage: comango <setup|upgrade|sync|create>"
+   usage: comango <setup|hook|upgrade|sync|create>"
 }
 
 function config() {
@@ -501,6 +501,18 @@ function set_env_var() {
 }
 export -f set_env_var
 
+# helper that provides all repo executables for bash completions
+function get_execs() {
+    local execs=
+
+    for repo in $REPOS_DIR/*; do
+        if [[ -f "$repo/.conf/exec" ]]; then
+            execs+=" $(basename "$repo")"
+        fi
+    done
+
+    echo $execs
+}
 
 if [ -n "$1" ] && [ -d "$REPOS_DIR/$1" ]; then
     if [ -e "$REPOS_DIR/$1/.conf/exec" ]; then

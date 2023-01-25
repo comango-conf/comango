@@ -1,0 +1,16 @@
+#/usr/bin/env bash
+
+_comango() {
+
+  if [ "${#COMP_WORDS[@]}" != "2" ]; then
+    if [ "${COMP_WORDS[1]}" == "upgrade" ]; then
+      COMPREPLY=($(compgen -W "-l --local -h --home-only" "${COMP_WORDS[2]}"))
+    fi
+
+    return
+  fi
+
+  COMPREPLY=($(compgen -W "create help hook setup sync upgrade $(comango get_execs)" "${COMP_WORDS[1]}"))
+}
+
+complete -F _comango comango
