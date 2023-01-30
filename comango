@@ -225,7 +225,7 @@ function _replace_templates() {
 
 
   local files
-  mapfile -t files <<<"$(find $BUILD_DIR -type "f,s")"
+  mapfile -t files <<<"$(find $BUILD_DIR -type f -exec grep -I -q . {} \; -print)"
 
   # collect all env variables that are used somewhere
   local variables=""

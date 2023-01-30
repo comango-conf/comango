@@ -1,11 +1,4 @@
 { stdenv, fetchurl, runCommand }:
-/* runCommand "comango" {} ''
-
-  mkdir $out
-  mkdir $out/bin
-
-  cp ./comango $out/bin
-'' */
 
 stdenv.mkDerivation {
   name = "comango";
