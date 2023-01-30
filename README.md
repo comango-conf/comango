@@ -1,3 +1,5 @@
 # comango
 
-A config management system for Gentoo, with templating functionality and script hooks.
+A config management system with templating functionality and script hooks.
+
+supports Gentoo and NixOS
