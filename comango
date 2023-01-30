@@ -428,6 +428,21 @@ function _generate_portage_set() {
   fi
 }
 
+function watch() {
+  local repo=$1;
+
+  if [ -z "$repo" ]; then
+   echo "No Repository provided"
+   exit 1
+  fi 
+
+  while true; do
+    (upgrade -l)
+    inotifywait -e create,modify -r "$REPOS_DIR/$repo"
+  done
+
+}
+
 function hook() {
   hook=$1
 
