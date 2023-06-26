@@ -13,6 +13,6 @@ stdenv.mkDerivation {
 
 
     cp comango $out/bin
-    cp bash-completions $out/share/bash-completions/completions/comango
+    cp bash-completions $out/share/bash-completion/completions/comango
   '';
 }
